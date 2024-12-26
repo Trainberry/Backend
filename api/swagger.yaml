@@ -1,0 +1,149 @@
+openapi: 3.0.1
+info:
+  title: Server API - v1.0.0
+  description: The Server API is responsible for sync between client and chips.
+  contact:
+    email: hello@florian.forestier.re
+  version: 1.0.0
+externalDocs:
+  description: Find out more about the project!
+  url: 'https://forestier.re'
+paths:
+  /register:
+    post:
+      summary: Register a new train. If train already exists, the API will return 201 but will not erase current data. When created, a train will set with lights on, speed 0 and going forward.
+      tags:
+        - chip
+      requestBody:
+        description: The details of the train.
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                model:
+                  type: string
+                ip:
+                  type: string
+      responses:
+        '201':
+          description: Created
+
+  /stop:
+    get:
+      summary: Emergency stop for all trains.
+      tags:
+        - security
+      responses:
+        '204':
+          description: Trains are stopping
+          
+  /trains:
+    get:
+      summary: List all trains
+      tags:
+        - trains
+      responses:
+        '200':
+          description: List of trains
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    name:
+                      type: string
+                    model:
+                      type: string
+                    ip:
+                      type: string
+                    last_contact:
+                      type: string
+                      format: datetime
+                    lights_on:
+                      type: boolean
+                    speed:
+                      type: integer
+                    is_going_forward:
+                      type: boolean
+  
+  /trains/{name}/speed:
+    put:
+      summary: Update speed and direction of a train.
+      tags:
+        - trains
+      parameters:
+        - in: path
+          name: name
+          required: true
+          schema:
+            type: string
+      requestBody:
+        description: The details of the train.
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                speed:
+                  type: integer
+                is_going_forward:
+                  type: boolean
+      responses:
+        '404':
+          description: Train not found
+        '204':
+          description: Updated
+
+  /trains/{name}/lights:
+    post:
+      summary: Turn on the lights
+      tags:
+        - trains
+      parameters:
+        - in: path
+          name: name
+          required: true
+          schema:
+            type: string
+      responses:
+        '404':
+          description: Train not found
+        '204':
+          description: Updated
+    delete:
+      summary: Turn off the lights
+      tags:
+        - trains
+      parameters:
+        - in: path
+          name: name
+          required: true
+          schema:
+            type: string
+      responses:
+        '404':
+          description: Train not found
+        '204':
+          description: Updated
+          
+  /trains/{name}:
+    delete:
+      summary: Remove a train from the system. This train will have to register again!
+      tags:
+        - trains
+      parameters:
+        - in: path
+          name: name
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Deleted
