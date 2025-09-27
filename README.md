@@ -1,37 +1,81 @@
-# Trainberry - Serveur
+# Trainberry - Server
 
-Ce dépôt contient les sources du serveur central utilisé pour contrôler les trains. Dans le détail, le serveur s'occupe
-de :
+This project contains the central server in charge of controlling our trains.
 
-- Conserver une liste des trains actuellement présents sur la table ;
-- Communiquer les commandes envoyées par l'utilisateur au(x) train(s) concerné(s) ;
-- Vérifier que l'ensemble des trains actuellement affichés sont bien disponibles.
+## Prerequisites
 
-# Démarrer le serveur
+You must have a Bluetooth antenna.
 
-## Via Docker depuis DockerHub
+## Run it
 
-1. Démarrez le container : `docker run -p 8080:8080 --name trainberry_server a1hex/trainberry_server:<version>`
-2. Le serveur est désormais disponible sur `http://localhost:8080`. 🎉
+Simply use the Golang CLI: `go run ./cmd`
 
-## Via Docker depuis les sources (recommandé)
+There is a few environment variables that you can set to custom the behaviour:
 
-1. Clonez ce dépôt ;
-2. Construisez l'image docker : `docker build -t trainberry_server:latest .`
-3. Démarrez le container : `docker run -p 8080:8080 --name trainberry_server trainberry_server:latest`
-4. Le serveur est désormais disponible sur `http://localhost:8080`. 🎉
+* `TRAINBERRY_LOG_LEVEL` (Default: `INFO`): Set log level
+* `TRAINBERRY_SANITY_RUN_INTERVAL` (Default: `5s`): Time between two executions of sanity run
+* `TRAINBERRY_BLE_DETECTION_RUN_INTERVAL` (Default: `2s): Time between two network scan to find new trains
 
-## Depuis les sources
+## APIs
 
-Pour démarrer ce serveur depuis les sources, vous devez disposer de Go 1.20 ou ultérieur sur votre machine.
+### REST
 
-Ensuite, il vous suffit de lancer `go run ./cmd`, le serveur sera disponible sur `http://localhost:8080`.
+There is only one REST endpoint on this server:
 
-# Configuration
+`GET` `/state` will return the current state of the server and associated chips. The format is the following:
 
-Aucune configuration n'est requise ! Le serveur démarre directement sur l'ensemble des IPs de votre machine sur le port
-8080, et n'utilise aucune base de données. Si votre serveur fonctionne, alors vous êtes prêt.
+```json
+[
+  {
+    "name": "Trainberry::BB22001",
+    "error_count": 0,
+    "speed": 0,
+    "light": true
+  }
+]
+```
 
-# API
+### WebSocket
 
-Le détail de l'API exposée est documentée dans un fichier Swagger dans le dossier `api/`.
+99% of the trains are controlled through a WebSocket. I made this decision because communicating via WS is way much
+quicker (and latency matters a lot!). Websocket is on `/ws` endpoint.
+
+#### Server -> Client
+
+The following information are sent by the server to the client(s):
+* `added_device`: A new device have been added to the server
+* `deleted_device`: A device have been removed after multiple healthcheck failure
+* `fail_counter_increment`: A device missed a healthcheck
+* `fail_counter_reset`: A device which was failing is back online
+* `light_update`: The light setting (on/off) have been updated on this device
+* `speed_update`: The speed setting have been updated on this device
+
+This information are communicated through WS in a JSON format. The format is as it follows:
+
+```json
+{
+  "operation":"deleted_device",
+  "device": {
+    "name":"Trainberry::BB22001",
+    "error_count":0,
+    "speed":0,
+    "light":false
+  }
+}
+```
+
+The server will always send the full object, **except on deletion event, where only the name is sent**.
+
+#### Client -> Server
+
+The clients can contact the server to make updates on devices. The operations are:
+* `set_light`: set light status for the desired device.
+  * Payload is: `{"operation":"set_light","device":{"name":"Trainberry::BB22001","light":true}}`
+* `set_speed`: set speed for the desired device.
+  * Payload is: `{"operation":"set_speed","device":{"name":"Trainberry::BB22001","speed":80}}`
+* `emerg_stop`: stop all trains simultaneously.
+  * Payload is: `{"operation":"emerg_stop"}`
+
+# License
+
+This project is licensed under [GNU Affero General Public License v3.0](https://choosealicense.com/licenses/agpl-3.0/).

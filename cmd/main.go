@@ -1,34 +1,33 @@
 package main
 
 import (
+	"github.com/rs/zerolog/log"
 	"net/http"
-
-	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
+	"test/internal/bluetooth"
+	"test/internal/controllers"
+	"test/internal/state"
 	"time"
-	"github.com/sirupsen/logrus"
-	"server/internal/controllers/middlewares"
-	"server/internal/controllers"
 )
 
 func main() {
-	r := chi.NewRouter()
-	r.Use(middleware.Logger)
-	r.Use(middleware.Timeout(15 * time.Second))
-	r.Use(middlewares.CORSManager)
+	// Detect devices (also start init loop)
+	bluetooth.DetectDevices()
 
-	r.Post("/register", controllers.RegisterTrain)
-	r.Get("/stop", controllers.Stop)
-	r.Get("/trains", controllers.GetTrains)
-	r.Delete("/trains/{name}", controllers.RemoveTrain)
-	r.Put("/trains/{name}/speed", controllers.UpdateTrainSpeed)
-	r.Post("/trains/{name}/lights", controllers.EnableTrainLights)
-	r.Delete("/trains/{name}/lights", controllers.DisableTrainLights)
+	// Check that connect chips are still alive
+	go startHealthcheck()
 
-	logrus.Info("Listing on port 8080")
-	
-	err := http.ListenAndServe(":8080", r)
-	if err != nil {
-		logrus.Fatalf("HTTP server hangup! Error was: %v", err)
+	// Create WebSocket server
+	http.HandleFunc("/ws", controllers.Websocket)
+	http.HandleFunc("/state", controllers.GetState)
+	log.Info().Msg("Listening on websocket port 8080")
+	log.Fatal().Err(http.ListenAndServe(":8080", nil))
+}
+
+func startHealthcheck() {
+	for {
+		time.Sleep(10 * time.Second)
+		for _, k := range state.Devices.GetDevices() {
+			_, _ = bluetooth.ReadPing(k)
+		}
 	}
 }
