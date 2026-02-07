@@ -35,14 +35,6 @@ func ReadSpeedState(device structures.Device) (int, error) {
 	}
 }
 
-func ReadPing(device structures.Device) (bool, error) {
-	if _, err := readInformation(PingInformation, device); err != nil {
-		log.Error().Err(err).Msgf("Failed to read ping info for device %s", device.Name)
-		return false, err
-	}
-	return true, nil
-}
-
 func readInformation(desiredInformation int, device structures.Device) ([]byte, error) {
 	if desiredInformation != PingInformation && desiredInformation != SpeedInformation && desiredInformation != LightInformation {
 		log.Error().Msg("Desired information is not valid")

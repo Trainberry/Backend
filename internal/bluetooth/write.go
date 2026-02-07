@@ -25,6 +25,14 @@ func WriteSpeed(speed int, device structures.Device) error {
 	}
 }
 
+func WritePing(device structures.Device) (bool, error) {
+	if err := writeInformation(PingInformation, []byte(""), device); err != nil {
+		log.Error().Err(err).Msgf("Failed to read ping info for device %s", device.Name)
+		return false, err
+	}
+	return true, nil
+}
+
 // WriteLight turns on the light if the first param is true, turns off the light if the first param is false.
 func WriteLight(light bool, device structures.Device) error {
 	parsed := []byte("off")
@@ -40,7 +48,7 @@ func WriteLight(light bool, device structures.Device) error {
 }
 
 func writeInformation(desiredInformation int, data []byte, device structures.Device) error {
-	if desiredInformation != SpeedInformation && desiredInformation != LightInformation {
+	if desiredInformation != PingInformation && desiredInformation != SpeedInformation && desiredInformation != LightInformation {
 		log.Error().Msg("Desired information is not valid")
 		return errors.New("desired information is not valid")
 	}
